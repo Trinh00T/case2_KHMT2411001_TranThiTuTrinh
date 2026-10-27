@@ -1,0 +1,7 @@
+api/.env
+api/node_modules/
+TaskManager/.dart_tool/
+TaskManager/build/
+TaskManager/.flutter-plugins
+TaskManager/.flutter-plugins-dependencies
+.idea/
