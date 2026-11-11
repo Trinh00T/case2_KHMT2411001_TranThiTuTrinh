@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'screens/tasks/task_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -436,6 +436,7 @@ class _LoginScreenState extends State<LoginScreen> {
 // ================= HOME SCREEN TẠM THỜI =================
 
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -523,6 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // Thông tin người dùng
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
@@ -560,6 +562,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 28),
 
+          // QUẢN LÝ CÔNG VIỆC
+          const Text(
+            'QUẢN LÝ CÔNG VIỆC',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildMenu(
+            icon: Icons.task_alt,
+            title: 'Quản lý công việc',
+            subtitle: 'Xem, thêm, sửa và theo dõi công việc',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TaskListScreen(),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // QUẢN LÝ TÀI KHOẢN
           const Text(
             'QUẢN LÝ TÀI KHOẢN',
             style: TextStyle(

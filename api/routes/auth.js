@@ -1,10 +1,12 @@
 
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const router = express.Router();
 
+// ================= ĐĂNG KÝ =================
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -24,7 +26,9 @@ router.post('/register', async (req, res) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({
+      email: normalizedEmail
+    });
 
     if (existingUser) {
       return res.status(409).json({
@@ -59,10 +63,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-module.exports = router;
-
-const jwt = require('jsonwebtoken');
-
+// ================= ĐĂNG NHẬP =================
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -97,6 +98,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET chua duoc cau hinh trong .env');
+    }
+
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
@@ -122,3 +127,5 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+
+module.exports = router;
