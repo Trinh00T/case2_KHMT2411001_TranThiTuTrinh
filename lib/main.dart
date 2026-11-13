@@ -776,8 +776,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-
-
   // ================= INPUT DECORATION =================
 
   InputDecoration _inputDecoration({
@@ -1101,10 +1099,13 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const String baseUrl = 'http://10.0.2.2:3000';
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
 
+  bool _isSaving = false;
   @override
   void initState() {
     super.initState();
@@ -1125,32 +1126,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
+  setState(() {
+    _isSaving = true;
+  });
+
+  try {
+    // Lấy token đăng nhập
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
 
-    await prefs.setString(
-      'userName',
-      _nameController.text.trim(),
-    );
+    if (token == null || token.isEmpty) {
+      throw Exception('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!');
+    }
 
-    await prefs.setString(
-      'userEmail',
-      _emailController.text.trim(),
-    );
+    // Gửi thông tin cá nhân lên Backend
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/auth/profile'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    final data = jsonDecode(response.body);
 
     if (!mounted) return;
 
+    if (response.statusCode == 200 && data['success'] == true) {
+      final user = data['user'];
+
+      // Chỉ lưu vào điện thoại sau khi Backend xác nhận thành công
+      await prefs.setString('userId', user['id'].toString());
+      await prefs.setString('userName', user['name']);
+      await prefs.setString('userEmail', user['email']);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cập nhật thông tin cá nhân thành công!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
+    } else {
+      throw Exception(
+        data['message'] ?? 'Cập nhật thông tin thất bại',
+      );
+    }
+  } catch (error) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Lưu thông tin thành công!'),
-        backgroundColor: Colors.green,
+      SnackBar(
+        content: Text('Lỗi cập nhật thông tin: $error'),
+        backgroundColor: Colors.red,
       ),
     );
-
-    Navigator.pop(context);
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
-
+}
   @override
   void dispose() {
     _nameController.dispose();
@@ -1248,10 +1295,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(
                 height: 53,
                 child: ElevatedButton.icon(
-                  onPressed: _saveProfile,
+                  onPressed: _isSaving ? null : _saveProfile,
                   icon: const Icon(Icons.save),
-                  label: const Text('LƯU THAY ĐỔI'),
-                  style: ElevatedButton.styleFrom(
+                  label: _isSaving
+    ? const Text('ĐANG LƯU...')
+    : const Text('LƯU THAY ĐỔI'),
+style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(

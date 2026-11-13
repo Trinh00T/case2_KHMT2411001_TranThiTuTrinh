@@ -1,4 +1,4 @@
-
+const authMiddleware = require('../middleware/auth');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -127,5 +127,70 @@ router.post('/login', async (req, res) => {
     });
   }
 });
+// Cap nhat thong tin ca nhan
+router.patch('/profile', authMiddleware, async (req, res) => {
+  try {
+    const { name, email } = req.body;
 
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui long nhap day du ho ten va email'
+      });
+    }
+
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedName || !normalizedEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ho ten va email khong duoc de trong'
+      });
+    }
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: req.user._id }
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email nay da duoc su dung boi tai khoan khac'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Khong tim thay tai khoan'
+      });
+    }
+
+    user.name = normalizedName;
+    user.email = normalizedEmail;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cap nhat thong tin ca nhan thanh cong',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('Loi cap nhat ho so:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Loi server khi cap nhat thong tin ca nhan'
+    });
+  }
+});
 module.exports = router;

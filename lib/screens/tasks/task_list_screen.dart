@@ -1,11 +1,16 @@
 
+
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 const Color taskPrimaryBlue = Color(0xFF2475ED);
 const Color taskDarkBlue = Color(0xFF26344D);
 
-
 class TaskItem {
+  String? id;
   String title;
   String description;
   String status;
@@ -14,8 +19,12 @@ class TaskItem {
   DateTime createdDate;
   DateTime dueDate;
   String assignee;
+  List<String> assignees;
+  String? primaryAssignee;
+  List<SharedMember> sharedWith;
 
   TaskItem({
+    this.id,
     required this.title,
     this.description = '',
     this.status = 'Chưa thực hiện',
@@ -24,9 +33,90 @@ class TaskItem {
     DateTime? createdDate,
     required this.dueDate,
     this.assignee = 'Tôi',
-  }) : createdDate = createdDate ?? DateTime.now();
+    this.assignees = const [],
+    this.primaryAssignee,
+    List<SharedMember>? sharedWith,
+
+  })  : createdDate = createdDate ?? DateTime.now(),
+        sharedWith = sharedWith ?? [];
+
+  factory TaskItem.fromJson(Map<String, dynamic> json) {
+    String getUserName(dynamic user) {
+      if (user is Map) {
+        return (user['name'] ?? user['email'] ?? '').toString();
+      }
+      return '';
+    }
+
+    final assigneeData = json['assignee'];
+
+    final assigneesData = json['assignees'] is List
+        ? json['assignees'] as List
+        : [];
+
+    final sharedData = json['sharedWith'] is List
+        ? json['sharedWith'] as List
+        : [];
+
+    return TaskItem(
+      id: json['_id']?.toString(),
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'Chưa thực hiện',
+      priority: json['priority']?.toString() ?? 'Trung bình',
+      startDate: DateTime.tryParse(
+        json['startDate']?.toString() ?? '',
+      ) ??
+          DateTime.now(),
+      createdDate: DateTime.tryParse(
+        (json['createdAt'] ?? json['createdDate'])?.toString() ?? '',
+      ) ??
+          DateTime.now(),
+      dueDate: DateTime.tryParse(
+        json['dueDate']?.toString() ?? '',
+      ) ??
+          DateTime.now(),
+      assignee: getUserName(assigneeData).isEmpty
+          ? 'Tôi'
+          : getUserName(assigneeData),
+      assignees: assigneesData
+          .map((user) => getUserName(user))
+          .where((name) => name.isNotEmpty)
+          .toList(),
+      primaryAssignee: getUserName(assigneeData),
+      sharedWith: sharedData.map((item) {
+        final user = item['user'];
+        final email = user is Map
+            ? (user['email'] ?? '').toString()
+            : '';
+
+        final permission =
+        (item['permission'] ?? 'viewer').toString();
+
+        return SharedMember(
+          userId: user is Map ? user['_id']?.toString() : null,
+          email: email,
+          permission: permission.toLowerCase() == 'editor'
+              ? 'Editor'
+              : 'Viewer',
+        );
+      }).where((member) => member.email.isNotEmpty).toList(),
+    );
+  }
 }
 
+
+class SharedMember {
+  String? userId;
+  String email;
+  String permission;
+
+  SharedMember({
+    this.userId,
+    required this.email,
+    this.permission = 'Viewer',
+  });
+}
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -36,7 +126,198 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
+
+  static const String baseUrl = 'http://10.0.2.2:3000';
+
+  bool _isLoadingTasks = false;
+
+  Future<void> _loadTasks() async {
+    setState(() {
+      _isLoadingTasks = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Không tìm thấy token đăng nhập. Vui lòng đăng nhập lại.');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/tasks'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final List<dynamic> taskData = data['tasks'] ?? [];
+
+        final loadedTasks = taskData
+            .map((item) => TaskItem.fromJson(
+          item as Map<String, dynamic>,
+        ))
+            .toList();
+
+        if (!mounted) return;
+
+        setState(() {
+          _tasks
+            ..clear()
+            ..addAll(loadedTasks);
+        });
+      } else {
+        throw Exception(
+          'Không tải được công việc (${response.statusCode}): ${response.body}',
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi tải công việc: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTasks = false;
+        });
+      }
+    }
+  }
+
+
   final TextEditingController _searchController = TextEditingController();
+
+  Future<TaskItem> _createTaskOnServer(TaskItem task) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Không tìm thấy token đăng nhập. Vui lòng đăng nhập lại.');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/tasks'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'title': task.title,
+        'description': task.description,
+        'priority': task.priority,
+        'status': task.status,
+        'dueDate': task.dueDate.toIso8601String(),
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 201 && data['success'] == true) {
+      return TaskItem.fromJson(
+        data['task'] as Map<String, dynamic>,
+      );
+    }
+
+    throw Exception(
+      data['message']?.toString() ??
+          'Không thể lưu công việc (${response.statusCode})',
+    );
+  }
+
+  Future<Map<String, dynamic>> _shareTaskOnServer(
+      TaskItem task,
+      String email,
+      String permission,
+      ) async {
+    if (task.id == null || task.id!.isEmpty) {
+      throw Exception('Công việc chưa có ID trên máy chủ!');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui lòng đăng nhập lại!');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/tasks/${task.id}/shares'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'email': email,
+        'permission': permission.toLowerCase(),
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 201 && data['success'] == true) {
+      return data as Map<String, dynamic>;
+    }
+
+    throw Exception(
+      data['message']?.toString() ??
+          'Không thể chia sẻ công việc (${response.statusCode})',
+    );
+  }
+
+  Future<List<SharedMember>> _loadSharedMembers(String taskId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Vui lòng đăng nhập lại!');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/tasks/$taskId/shares'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(
+        data['message']?.toString() ??
+            'Không tải được danh sách chia sẻ',
+      );
+    }
+
+    final sharedData = data['sharedWith'] is List
+        ? data['sharedWith'] as List
+        : [];
+
+    return sharedData.map<SharedMember>((item) {
+      final user = item['user'];
+      final email = user is Map
+          ? (user['email'] ?? '').toString()
+          : '';
+
+      final permission = (item['permission'] ?? 'viewer').toString();
+
+      return SharedMember(
+        userId: user is Map ? user['_id']?.toString() : null,
+        email: email,
+        permission: permission.toLowerCase() == 'editor'
+            ? 'Editor'
+            : 'Viewer',
+      );
+    }).where((member) => member.email.isNotEmpty).toList();
+  }
 
   String _statusFilter = 'Tất cả';
   String _priorityFilter = 'Tất cả';
@@ -78,9 +359,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
   ];
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadTasks();
   }
 
   List<TaskItem> get _filteredTasks {
@@ -114,17 +395,27 @@ result.sort((a, b) => b.createdDate.compareTo(a.createdDate));
   int get _completedCount =>
       _tasks.where((task) => task.status == 'Đã hoàn thành').length;
 
-
-  void _showAddTaskDialog() {
+  Future<void> _showAddTaskDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
+    final emailController = TextEditingController();
+
+final List<String> sampleMembers = [
+'Tú Trinh',
+'Cẩm Như',
+'Thanh Ngân',
+'Quỳnh Như',
+];
+
+List<String> selectedAssignees = [];
+String? primaryAssignee;
 
     final DateTime createdDate = DateTime.now();
     DateTime dueDate = DateTime.now().add(const Duration(days: 3));
 
     String priority = 'Trung bình';
 
-    showDialog(
+    final newTask = await showDialog<TaskItem>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -223,6 +514,134 @@ result.sort((a, b) => b.createdDate.compareTo(a.createdDate));
                         child: Text(_formatDate(dueDate)),
                       ),
                     ),
+
+// Người được giao
+                    const SizedBox(height: 20),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Người được giao',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: taskDarkBlue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Email hoặc tài khoản thành viên',
+                        hintText: 'example@gmail.com',
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.add_circle, color: taskPrimaryBlue),
+                          onPressed: () {
+                            final email = emailController.text.trim();
+
+                            if (!email.contains('@') || !email.contains('.')) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Vui lòng nhập email hợp lệ'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (sampleMembers.contains(email)) {
+                              return;
+                            }
+
+                            setDialogState(() {
+                              sampleMembers.add(email);
+                              selectedAssignees.add(email);
+                              primaryAssignee ??= email;
+                              emailController.clear();
+                            });
+                          },
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: sampleMembers.map((member) {
+                        final isSelected = selectedAssignees.contains(member);
+
+                        return FilterChip(
+                          label: Text(member),
+                          selected: isSelected,
+                          selectedColor: taskPrimaryBlue.withValues(alpha: 0.18),
+                          checkmarkColor: taskPrimaryBlue,
+                          onSelected: (selected) {
+                            setDialogState(() {
+                              if (selected) {
+                                selectedAssignees.add(member);
+
+                                // Người đầu tiên được chọn mặc định là phụ trách chính
+                                primaryAssignee ??= member;
+                              } else {
+                                selectedAssignees.remove(member);
+
+                                if (primaryAssignee == member) {
+                                  primaryAssignee = selectedAssignees.isNotEmpty
+                                      ? selectedAssignees.first
+                                      : null;
+                                }
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+// Người phụ trách chính
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Người phụ trách chính',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: taskDarkBlue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: primaryAssignee,
+                          hint: const Text('Chọn người phụ trách chính'),
+                          items: selectedAssignees.map((member) {
+                            return DropdownMenuItem<String>(
+                              value: member,
+                              child: Text(member),
+                            );
+                          }).toList(),
+                          onChanged: selectedAssignees.isEmpty
+                              ? null
+                              : (value) {
+                            setDialogState(() {
+                              primaryAssignee = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+
                   ],
                 ),
               ),
@@ -234,7 +653,7 @@ result.sort((a, b) => b.createdDate.compareTo(a.createdDate));
                 ElevatedButton(
                   onPressed: () {
                     if (titleController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(this.context).showSnackBar(
                         const SnackBar(
                           content: Text('Vui lòng nhập tên công việc!'),
                         ),
@@ -242,24 +661,18 @@ result.sort((a, b) => b.createdDate.compareTo(a.createdDate));
                       return;
                     }
 
-                    setState(() {
-                      _tasks.add(
-                        TaskItem(
-                          title: titleController.text.trim(),
-                          description: descriptionController.text.trim(),
-                          priority: priority,
-                          startDate: createdDate,
-                          createdDate: createdDate,
-                          dueDate: dueDate,
-                        ),
-                      );
-                    });
-
-                    Navigator.pop(dialogContext);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã thêm công việc!'),
+                    Navigator.pop(
+                      dialogContext,
+                      TaskItem(
+                        title: titleController.text.trim(),
+                        description: descriptionController.text.trim(),
+                        priority: priority,
+                        startDate: createdDate,
+                        createdDate: createdDate,
+                        dueDate: dueDate,
+                        assignees: List<String>.from(selectedAssignees),
+                        primaryAssignee: primaryAssignee,
+                        assignee: primaryAssignee ?? 'Tôi',
                       ),
                     );
                   },
@@ -270,16 +683,98 @@ result.sort((a, b) => b.createdDate.compareTo(a.createdDate));
           },
         );
       },
-    ).then((_) {
-      titleController.dispose();
-      descriptionController.dispose();
-    });
+    );
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    titleController.dispose();
+    descriptionController.dispose();
+    emailController.dispose();
+
+
+    if (newTask != null && mounted) {
+      try {
+        final savedTask = await _createTaskOnServer(newTask);
+
+        if (!mounted) return;
+
+        setState(() {
+          _tasks.insert(0, savedTask);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã lưu công việc '),
+          ),
+        );
+      } catch (error) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi lưu công việc: $error'),
+          ),
+        );
+      }
+    }
+
   }
 
-  void _changeStatus(TaskItem task, String status) {
-    setState(() {
-      task.status = status;
-    });
+  Future<void> _changeStatus(TaskItem task, String status) async {
+    if (task.id == null || task.id!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Công việc chưa có ID trên máy chủ!'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Vui lòng đăng nhập lại!');
+      }
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/tasks/${task.id}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'status': status,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        if (!mounted) return;
+
+        setState(() {
+          task.status = status;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã lưu tiến độ công việc '),
+          ),
+        );
+      } else {
+        throw Exception(data['message'] ?? 'Không thể cập nhật công việc');
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi cập nhật tiến độ: $error'),
+        ),
+      );
+    }
   }
 
   Color _statusColor(String status) {
@@ -379,34 +874,243 @@ result.sort((a, b) => b.createdDate.compareTo(a.createdDate));
                     if (value == 'delete') {
                       setState(() => _tasks.remove(task));
                     } else if (value == 'detail') {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text(task.title),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                task.description.isEmpty
-                                    ? 'Chưa có mô tả.'
-                                    : task.description,
-                              ),
-                              const SizedBox(height: 12),
-                              Text('Ngày tạo: ${_formatDate(task.createdDate)}'),
-                              Text('Ngày hoàn thành: ${_formatDate(task.dueDate)}'),
-                              Text('Ưu tiên: ${task.priority}'),
-                              Text('Trạng thái: ${task.status}'),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Đóng'),
-                            ),
-                          ],
-                        ),
-                      );
+final shareEmailController = TextEditingController();
+String newPermission = 'Viewer';
+
+showDialog(
+context: context,
+builder: (dialogContext) {
+return StatefulBuilder(
+builder: (dialogContext, setDialogState) {
+return AlertDialog(
+title: Text(task.title),
+content: SingleChildScrollView(
+child: Column(
+mainAxisSize: MainAxisSize.min,
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+Text(
+task.description.isEmpty
+? 'Chưa có mô tả.'
+: task.description,
+),
+const SizedBox(height: 12),
+Text('Ngày tạo: ${_formatDate(task.createdDate)}'),
+Text('Ngày hoàn thành: ${_formatDate(task.dueDate)}'),
+Text('Ưu tiên: ${task.priority}'),
+Text('Trạng thái: ${task.status}'),
+
+const Divider(height: 28),
+
+const Text(
+'Chia sẻ công việc',
+style: TextStyle(
+fontSize: 16,
+fontWeight: FontWeight.bold,
+),
+),
+const SizedBox(height: 10),
+
+TextField(
+controller: shareEmailController,
+keyboardType: TextInputType.emailAddress,
+decoration: const InputDecoration(
+labelText: 'Email thành viên',
+hintText: 'example@gmail.com',
+prefixIcon: Icon(Icons.email_outlined),
+border: OutlineInputBorder(),
+),
+),
+const SizedBox(height: 10),
+
+DropdownButtonFormField<String>(
+initialValue: newPermission,
+decoration: const InputDecoration(
+labelText: 'Quyền truy cập',
+border: OutlineInputBorder(),
+),
+items: const [
+DropdownMenuItem(
+value: 'Viewer',
+child: Text('Viewer - Chỉ xem'),
+),
+DropdownMenuItem(
+value: 'Editor',
+child: Text('Editor - Được chỉnh sửa'),
+),
+],
+onChanged: (value) {
+if (value != null) {
+setDialogState(() {
+newPermission = value;
+});
+}
+},
+),
+const SizedBox(height: 10),
+
+SizedBox(
+width: double.infinity,
+child: ElevatedButton.icon(
+
+  onPressed: () async {
+    final email = shareEmailController.text
+        .trim()
+        .toLowerCase();
+
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        const SnackBar(
+          content: Text('Email không hợp lệ!'),
+        ),
+      );
+      return;
+    }
+
+    if (task.id == null || task.id!.isEmpty) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        const SnackBar(
+          content: Text('Công việc chưa được lưu trên máy chủ!'),
+        ),
+      );
+      return;
+    }
+
+    if (task.sharedWith.any(
+          (member) => member.email.toLowerCase() == email,
+    )) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        const SnackBar(
+          content: Text('Email này đã được chia sẻ!'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final result = await _shareTaskOnServer(
+        task,
+        email,
+        newPermission,
+      );
+
+      final members = await _loadSharedMembers(task.id!);
+
+      if (!mounted || !dialogContext.mounted) return;
+
+      setDialogState(() {
+        task.sharedWith
+          ..clear()
+          ..addAll(members);
+
+        shareEmailController.clear();
+      });
+
+
+      final emailSent = result['emailSent'] == true;
+
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text(
+            emailSent
+                ? 'Đã chia sẻ công việc và gửi email thành công!'
+                : 'Đã lưu chia sẻ nhưng gửi email thất bại: ${result['emailError'] ?? 'Không rõ nguyên nhân'}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi chia sẻ công việc: $error'),
+        ),
+      );
+    }
+  },
+
+icon: const Icon(Icons.person_add_alt_1),
+label: const Text('Thêm thành viên'),
+),
+),
+
+const Divider(height: 28),
+
+const Text(
+'Danh sách thành viên được chia sẻ',
+style: TextStyle(fontWeight: FontWeight.bold),
+),
+const SizedBox(height: 8),
+
+if (task.sharedWith.isEmpty)
+const Text(
+'Chưa có thành viên nào được chia sẻ.',
+style: TextStyle(color: Colors.grey),
+),
+
+...task.sharedWith.map((member) {
+return ListTile(
+contentPadding: EdgeInsets.zero,
+leading: const CircleAvatar(
+child: Icon(Icons.person),
+),
+title: Text(
+member.email,
+style: const TextStyle(fontSize: 13),
+),
+subtitle: DropdownButton<String>(
+value: member.permission,
+isExpanded: true,
+items: const [
+DropdownMenuItem(
+value: 'Viewer',
+child: Text('Viewer - Chỉ xem'),
+),
+DropdownMenuItem(
+value: 'Editor',
+child: Text('Editor - Được chỉnh sửa'),
+),
+],
+onChanged: (value) {
+if (value != null) {
+setDialogState(() {
+member.permission = value;
+});
+
+}
+},
+),
+trailing: IconButton(
+tooltip: 'Thu hồi quyền',
+icon: const Icon(
+Icons.delete_outline,
+color: Colors.red,
+),
+onPressed: () {
+setDialogState(() {
+task.sharedWith.remove(member);
+});
+setState(() {});
+},
+),
+);
+}),
+],
+),
+),
+actions: [
+TextButton(
+onPressed: () => Navigator.pop(dialogContext),
+child: const Text('Đóng'),
+),
+],
+);
+},
+);
+},
+).whenComplete(() {
+  shareEmailController.dispose();
+});
                     }
                   },
                   itemBuilder: (context) => const [
