@@ -1,6 +1,7 @@
 
 const mongoose = require('mongoose');
 
+// Người dùng đã đăng ký được chia sẻ
 const taskShareSchema = new mongoose.Schema(
   {
     user: {
@@ -15,6 +16,33 @@ const taskShareSchema = new mongoose.Schema(
     }
   },
   { _id: false }
+);
+
+// Email chưa đăng ký được mời chia sẻ
+const externalShareSchema = new mongoose.Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true
+    },
+    permission: {
+      type: String,
+      enum: ['viewer', 'editor'],
+      default: 'viewer'
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'sent', 'failed'],
+      default: 'pending'
+    },
+    sentAt: {
+      type: Date,
+      default: null
+    }
+  },
+  { timestamps: true }
 );
 
 const taskSchema = new mongoose.Schema(
@@ -53,10 +81,14 @@ const taskSchema = new mongoose.Schema(
       }],
       default: []
     },
+
+    // Người dùng đã đăng ký
     sharedWith: {
       type: [taskShareSchema],
       default: []
     },
+
+    // Người được giao việc qua email
     externalAssignees: {
       type: [
         {
@@ -79,6 +111,13 @@ const taskSchema = new mongoose.Schema(
       ],
       default: []
     },
+
+    // Người chưa đăng ký được mời chia sẻ
+    externalSharedWith: {
+      type: [externalShareSchema],
+      default: []
+    },
+
     startDate: {
       type: Date,
       default: Date.now

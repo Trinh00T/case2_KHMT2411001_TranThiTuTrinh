@@ -1,5 +1,9 @@
 import 'dart:convert';
+
 import 'screens/tasks/task_list_screen.dart';
+import 'screens/notifications/notification_screen.dart';
+import 'screens/notifications/email_history_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -71,15 +75,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final response = await http
           .post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': _emailController.text.trim(),
-          'password': _passwordController.text,
-        }),
-      )
+            Uri.parse('$baseUrl/api/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': _emailController.text.trim(),
+              'password': _passwordController.text,
+            }),
+          )
           .timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);
@@ -105,16 +107,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              data['message'] ?? 'Đăng nhập thất bại',
-            ),
+            content: Text(data['message'] ?? 'Đăng nhập thất bại'),
             backgroundColor: Colors.red,
           ),
         );
@@ -136,10 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -191,10 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text(
                     'Quản lý công việc nhóm dễ dàng và hiệu quả',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
 
                   const SizedBox(height: 42),
@@ -212,10 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const Text(
                     'Chào mừng bạn quay trở lại!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
 
                   const SizedBox(height: 28),
@@ -244,9 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFE1E6EF),
-                        ),
+                        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -308,9 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFE1E6EF),
-                        ),
+                        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -367,8 +352,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBlue,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                        primaryBlue.withValues(alpha: 0.6),
+                        disabledBackgroundColor: primaryBlue.withValues(
+                          alpha: 0.6,
+                        ),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -376,20 +362,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : const Text(
-                        'ĐĂNG NHẬP',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                              'ĐĂNG NHẬP',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
 
@@ -434,8 +420,6 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 // ================= HOME SCREEN TẠM THỜI =================
-
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -496,10 +480,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
-          (route) => false,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
@@ -515,10 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-          ),
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
         ],
       ),
       body: ListView(
@@ -536,11 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const CircleAvatar(
                   radius: 42,
                   backgroundColor: Color(0xFFE5EEFF),
-                  child: Icon(
-                    Icons.person,
-                    size: 48,
-                    color: primaryBlue,
-                  ),
+                  child: Icon(Icons.person, size: 48, color: primaryBlue),
                 ),
                 const SizedBox(height: 15),
                 Text(
@@ -552,10 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text(
-                  userEmail,
-                  style: const TextStyle(color: Colors.grey),
-                ),
+                Text(userEmail, style: const TextStyle(color: Colors.grey)),
               ],
             ),
           ),
@@ -581,9 +553,47 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const TaskListScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const TaskListScreen()),
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // THÔNG BÁO VÀ EMAIL
+          const Text(
+            'THÔNG BÁO VÀ EMAIL',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildMenu(
+            icon: Icons.notifications_outlined,
+            title: 'Thông báo',
+            subtitle: 'Xem thông báo giao việc và cập nhật công việc',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildMenu(
+            icon: Icons.email_outlined,
+            title: 'Lịch sử email',
+            subtitle: 'Theo dõi trạng thái các email đã gửi',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EmailHistoryScreen()),
               );
             },
           ),
@@ -609,9 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const ProfileScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
               _loadUser();
             },
@@ -624,9 +632,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const ChangePasswordScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
               );
             },
           ),
@@ -664,10 +670,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: darkBlue,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, color: darkBlue),
         ),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
@@ -723,16 +726,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final response = await http
           .post(
-        Uri.parse('$baseUrl/api/auth/register'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'password': _passwordController.text,
-        }),
-      )
+            Uri.parse('$baseUrl/api/auth/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': _nameController.text.trim(),
+              'email': _emailController.text.trim(),
+              'password': _passwordController.text,
+            }),
+          )
           .timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);
@@ -751,9 +752,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              data['message'] ?? 'Đăng ký thất bại',
-            ),
+            content: Text(data['message'] ?? 'Đăng ký thất bại'),
             backgroundColor: Colors.red,
           ),
         );
@@ -789,26 +788,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       suffixIcon: suffix,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 17,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE1E6EF),
-        ),
+        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: primaryBlue,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: primaryBlue, width: 1.5),
       ),
     );
   }
@@ -871,10 +862,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Text(
                     'Đăng ký để bắt đầu quản lý công việc nhóm',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
 
                   const SizedBox(height: 32),
@@ -1007,8 +995,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         onPressed: () {
                           setState(() {
-                            _obscureConfirmPassword =
-                            !_obscureConfirmPassword;
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
                           });
                         },
                       ),
@@ -1042,20 +1029,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                        height: 23,
-                        width: 23,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                              height: 23,
+                              width: 23,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : const Text(
-                        'ĐĂNG KÝ',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                              'ĐĂNG KÝ',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
 
@@ -1091,6 +1078,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -1118,86 +1106,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
 
     setState(() {
-      _nameController.text =
-          prefs.getString('userName') ?? '';
-      _emailController.text =
-          prefs.getString('userEmail') ?? '';
+      _nameController.text = prefs.getString('userName') ?? '';
+      _emailController.text = prefs.getString('userEmail') ?? '';
     });
   }
 
   Future<void> _saveProfile() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() {
-    _isSaving = true;
-  });
+    setState(() {
+      _isSaving = true;
+    });
 
-  try {
-    // Lấy token đăng nhập
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    try {
+      // Lấy token đăng nhập
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
-    if (token == null || token.isEmpty) {
-      throw Exception('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!');
-    }
+      if (token == null || token.isEmpty) {
+        throw Exception('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!');
+      }
 
-    // Gửi thông tin cá nhân lên Backend
-    final response = await http.patch(
-      Uri.parse('$baseUrl/api/auth/profile'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-      }),
-    ).timeout(const Duration(seconds: 15));
+      // Gửi thông tin cá nhân lên Backend
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl/api/auth/profile'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'name': _nameController.text.trim(),
+              'email': _emailController.text.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    final data = jsonDecode(response.body);
-
-    if (!mounted) return;
-
-    if (response.statusCode == 200 && data['success'] == true) {
-      final user = data['user'];
-
-      // Chỉ lưu vào điện thoại sau khi Backend xác nhận thành công
-      await prefs.setString('userId', user['id'].toString());
-      await prefs.setString('userName', user['name']);
-      await prefs.setString('userEmail', user['email']);
+      final data = jsonDecode(response.body);
 
       if (!mounted) return;
 
+      if (response.statusCode == 200 && data['success'] == true) {
+        final user = data['user'];
+
+        // Chỉ lưu vào điện thoại sau khi Backend xác nhận thành công
+        await prefs.setString('userId', user['id'].toString());
+        await prefs.setString('userName', user['name']);
+        await prefs.setString('userEmail', user['email']);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cập nhật thông tin cá nhân thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context);
+      } else {
+        throw Exception(data['message'] ?? 'Cập nhật thông tin thất bại');
+      }
+    } catch (error) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cập nhật thông tin cá nhân thành công!'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text('Lỗi cập nhật thông tin: $error'),
+          backgroundColor: Colors.red,
         ),
       );
-
-      Navigator.pop(context);
-    } else {
-      throw Exception(
-        data['message'] ?? 'Cập nhật thông tin thất bại',
-      );
-    }
-  } catch (error) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Lỗi cập nhật thông tin: $error'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isSaving = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
-}
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -1227,11 +1214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: CircleAvatar(
                   radius: 55,
                   backgroundColor: Color(0xFFE5EEFF),
-                  child: Icon(
-                    Icons.person,
-                    size: 65,
-                    color: primaryBlue,
-                  ),
+                  child: Icon(Icons.person, size: 65, color: primaryBlue),
                 ),
               ),
 
@@ -1239,10 +1222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const Text(
                 'Họ và tên',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: darkBlue,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, color: darkBlue),
               ),
 
               const SizedBox(height: 10),
@@ -1265,10 +1245,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const Text(
                 'Email',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: darkBlue,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, color: darkBlue),
               ),
 
               const SizedBox(height: 10),
@@ -1282,8 +1259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 validator: (value) {
                   if (value == null ||
-                      !RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                          .hasMatch(value.trim())) {
+                      !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
                     return 'Email không hợp lệ';
                   }
                   return null;
@@ -1298,9 +1274,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: _isSaving ? null : _saveProfile,
                   icon: const Icon(Icons.save),
                   label: _isSaving
-    ? const Text('ĐANG LƯU...')
-    : const Text('LƯU THAY ĐỔI'),
-style: ElevatedButton.styleFrom(
+                      ? const Text('ĐANG LƯU...')
+                      : const Text('LƯU THAY ĐỔI'),
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: primaryBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
@@ -1316,10 +1292,7 @@ style: ElevatedButton.styleFrom(
     );
   }
 
-  InputDecoration _inputDecoration(
-      String hint,
-      IconData icon,
-      ) {
+  InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
       hintText: hint,
       prefixIcon: Icon(icon),
@@ -1327,15 +1300,11 @@ style: ElevatedButton.styleFrom(
       fillColor: Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(
-          color: Color(0xFFE1E6EF),
-        ),
+        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(
-          color: Color(0xFFE1E6EF),
-        ),
+        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
       ),
     );
   }
@@ -1345,12 +1314,10 @@ class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() =>
-      _ChangePasswordScreenState();
+  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState
-    extends State<ChangePasswordScreen> {
+class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _oldPasswordController = TextEditingController();
@@ -1372,35 +1339,23 @@ class _ChangePasswordScreenState
     super.dispose();
   }
 
-  InputDecoration _decoration(
-      String hint,
-      bool visible,
-      VoidCallback toggle,
-      ) {
+  InputDecoration _decoration(String hint, bool visible, VoidCallback toggle) {
     return InputDecoration(
       hintText: hint,
       prefixIcon: const Icon(Icons.lock_outline),
       suffixIcon: IconButton(
-        icon: Icon(
-          visible
-              ? Icons.visibility
-              : Icons.visibility_off,
-        ),
+        icon: Icon(visible ? Icons.visibility : Icons.visibility_off),
         onPressed: toggle,
       ),
       filled: true,
       fillColor: Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(
-          color: Color(0xFFE1E6EF),
-        ),
+        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(
-          color: Color(0xFFE1E6EF),
-        ),
+        borderSide: const BorderSide(color: Color(0xFFE1E6EF)),
       ),
     );
   }
@@ -1413,26 +1368,30 @@ class _ChangePasswordScreenState
     });
 
     try {
-// Lấy token đã lưu khi đăng nhập
+      // Lấy token đã lưu khi đăng nhập
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
 
       if (token == null || token.isEmpty) {
-        throw Exception('Phiên đăng nhập không tồn tại. Vui lòng đăng nhập lại.');
+        throw Exception(
+          'Phiên đăng nhập không tồn tại. Vui lòng đăng nhập lại.',
+        );
       }
 
-// Gửi yêu cầu đổi mật khẩu đến Backend
-      final response = await http.put(
-        Uri.parse('$baseUrl/api/auth/change-password'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'currentPassword': _oldPasswordController.text,
-          'newPassword': _newPasswordController.text,
-        }),
-      ).timeout(const Duration(seconds: 15));
+      // Gửi yêu cầu đổi mật khẩu đến Backend
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/api/auth/change-password'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'currentPassword': _oldPasswordController.text,
+              'newPassword': _newPasswordController.text,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);
 
@@ -1463,10 +1422,7 @@ class _ChangePasswordScreenState
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi: $error'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Lỗi: $error'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -1476,7 +1432,6 @@ class _ChangePasswordScreenState
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -1538,7 +1493,7 @@ class _ChangePasswordScreenState
                   decoration: _decoration(
                     'Nhập mật khẩu hiện tại',
                     _showOld,
-                        () => setState(() => _showOld = !_showOld),
+                    () => setState(() => _showOld = !_showOld),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -1563,7 +1518,7 @@ class _ChangePasswordScreenState
                   decoration: _decoration(
                     'Nhập mật khẩu mới',
                     _showNew,
-                        () => setState(() => _showNew = !_showNew),
+                    () => setState(() => _showNew = !_showNew),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -1594,7 +1549,7 @@ class _ChangePasswordScreenState
                   decoration: _decoration(
                     'Nhập lại mật khẩu mới',
                     _showConfirm,
-                        () => setState(() => _showConfirm = !_showConfirm),
+                    () => setState(() => _showConfirm = !_showConfirm),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -1615,8 +1570,9 @@ class _ChangePasswordScreenState
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryBlue,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                      primaryBlue.withValues(alpha: 0.6),
+                      disabledBackgroundColor: primaryBlue.withValues(
+                        alpha: 0.6,
+                      ),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(13),
@@ -1624,17 +1580,17 @@ class _ChangePasswordScreenState
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                      width: 23,
-                      height: 23,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                            width: 23,
+                            height: 23,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
                         : const Text(
-                      'XÁC NHẬN ĐỔI MẬT KHẨU',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                            'XÁC NHẬN ĐỔI MẬT KHẨU',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],

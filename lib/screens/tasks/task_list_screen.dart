@@ -22,6 +22,9 @@ class TaskItem {
   List<String> assignees;
   String? primaryAssignee;
   List<SharedMember> sharedWith;
+  String createdByName;
+  String createdByEmail;
+
 
   TaskItem({
     this.id,
@@ -36,6 +39,8 @@ class TaskItem {
     this.assignees = const [],
     this.primaryAssignee,
     List<SharedMember>? sharedWith,
+    this.createdByName = '',
+    this.createdByEmail = '',
 
   })  : createdDate = createdDate ?? DateTime.now(),
         sharedWith = sharedWith ?? [];
@@ -58,8 +63,19 @@ class TaskItem {
         ? json['sharedWith'] as List
         : [];
 
+    final externalSharedData = json['externalSharedWith'] is List
+        ? json['externalSharedWith'] as List
+        : [];
+
+    final createdByData = json['createdBy'];
     return TaskItem(
       id: json['_id']?.toString(),
+      createdByName: createdByData is Map
+          ? (createdByData['name'] ?? '').toString()
+          : '',
+      createdByEmail: createdByData is Map
+          ? (createdByData['email'] ?? '').toString()
+          : '',
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       status: json['status']?.toString() ?? 'Chưa thực hiện',
@@ -84,23 +100,35 @@ class TaskItem {
           .where((name) => name.isNotEmpty)
           .toList(),
       primaryAssignee: getUserName(assigneeData),
-      sharedWith: sharedData.map((item) {
-        final user = item['user'];
-        final email = user is Map
-            ? (user['email'] ?? '').toString()
-            : '';
+      sharedWith: [
+        ...sharedData.map((item) {
+          final user = item['user'];
+          final email = user is Map
+              ? (user['email'] ?? '').toString()
+              : '';
 
-        final permission =
-        (item['permission'] ?? 'viewer').toString();
+          final permission =
+          (item['permission'] ?? 'viewer').toString();
 
-        return SharedMember(
-          userId: user is Map ? user['_id']?.toString() : null,
-          email: email,
-          permission: permission.toLowerCase() == 'editor'
-              ? 'Editor'
-              : 'Viewer',
-        );
-      }).where((member) => member.email.isNotEmpty).toList(),
+          return SharedMember(
+            userId: user is Map ? user['_id']?.toString() : null,
+            email: email,
+            permission: permission.toLowerCase() == 'editor'
+                ? 'Editor'
+                : 'Viewer',
+          );
+        }),
+        ...externalSharedData.map((item) {
+          return SharedMember(
+            email: (item['email'] ?? '').toString(),
+            permission: (item['permission'] ?? 'viewer')
+                .toString()
+                .toLowerCase() == 'editor'
+                ? 'Editor'
+                : 'Viewer',
+          );
+        }),
+      ].where((member) => member.email.isNotEmpty).toList(),
     );
   }
 }
@@ -870,15 +898,15 @@ String? primaryAssignee;
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_horiz),
-                  onSelected: (value) {
+                  onSelected: (value) async {
                     if (value == 'delete') {
                       setState(() => _tasks.remove(task));
                     } else if (value == 'detail') {
 final shareEmailController = TextEditingController();
 String newPermission = 'Viewer';
 
-showDialog(
-context: context,
+await showDialog<void>(
+  context: context,
 builder: (dialogContext) {
 return StatefulBuilder(
 builder: (dialogContext, setDialogState) {
@@ -897,6 +925,32 @@ task.description.isEmpty
 const SizedBox(height: 12),
 Text('Ngày tạo: ${_formatDate(task.createdDate)}'),
 Text('Ngày hoàn thành: ${_formatDate(task.dueDate)}'),
+  const SizedBox(height: 8),
+
+  const Text(
+    'Người tạo công việc',
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      color: taskDarkBlue,
+    ),
+  ),
+
+  ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: const CircleAvatar(
+      child: Icon(Icons.person),
+    ),
+    title: Text(
+      task.createdByName.isNotEmpty
+          ? task.createdByName
+          : 'Chưa có thông tin',
+    ),
+    subtitle: Text(
+      task.createdByEmail.isNotEmpty
+          ? task.createdByEmail
+          : 'Không có email',
+    ),
+  ),
 Text('Ưu tiên: ${task.priority}'),
 Text('Trạng thái: ${task.status}'),
 
@@ -1100,18 +1154,18 @@ setState(() {});
 ),
 actions: [
 TextButton(
-onPressed: () => Navigator.pop(dialogContext),
+  onPressed: () {
+    Navigator.of(dialogContext).pop();
+  },
 child: const Text('Đóng'),
 ),
 ],
 );
 },
 );
-},
-).whenComplete(() {
-  shareEmailController.dispose();
 });
-                    }
+await Future.delayed(const Duration(milliseconds: 300));
+shareEmailController.dispose();                }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(
