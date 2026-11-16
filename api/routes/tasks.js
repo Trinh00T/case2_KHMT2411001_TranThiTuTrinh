@@ -303,6 +303,141 @@ router.get('/', async (req, res) => {
 
 // ==========================================
 // 3. XEM CHI TIẾT CÔNG VIỆC
+
+// ==========================================
+// THỐNG KÊ CÔNG VIỆC
+// ==========================================
+
+router.get('/stats', async (req, res) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(
+      req.user._id.toString()
+    );
+
+    // Điều kiện lọc công việc theo từng vai trò
+    const createdCondition = {
+      createdBy: userId
+    };
+
+    const assignedCondition = {
+      $or: [
+        { assignee: userId },
+        { assignees: userId }
+      ]
+    };
+
+    const sharedCondition = {
+      'sharedWith.user': userId
+    };
+
+    // Tất cả công việc người dùng có quyền truy cập
+    const allCondition = {
+      $or: [
+        { createdBy: userId },
+        { assignee: userId },
+        { assignees: userId },
+        { 'sharedWith.user': userId }
+      ]
+    };
+    // Thời gian hiện tại và mốc 3 ngày tới
+    const now = new Date();
+
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+
+    // Công việc sắp đến hạn
+    const dueSoonCondition = {
+      ...allCondition,
+      dueDate: {
+        $gte: now,
+        $lte: threeDaysLater
+      },
+      status: { $ne: 'Đã hoàn thành' }
+    };
+
+    // Công việc đã quá hạn
+    const overdueCondition = {
+      ...allCondition,
+      dueDate: { $lt: now },
+      status: { $ne: 'Đã hoàn thành' }
+    };
+
+    // Lấy số lượng công việc theo trạng thái
+    const statusStats = await Task.aggregate([
+      { $match: allCondition },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Tổng số công việc theo vai trò
+    const [
+      totalTasks,
+      createdTasks,
+      assignedTasks,
+      sharedTasks,
+      dueSoonTasks,
+      overdueTasks,
+      dueSoonList,
+      overdueList
+    ] = await Promise.all([
+      Task.countDocuments(allCondition),
+      Task.countDocuments(createdCondition),
+      Task.countDocuments(assignedCondition),
+      Task.countDocuments(sharedCondition),
+      Task.countDocuments(dueSoonCondition),
+      Task.countDocuments(overdueCondition),
+
+      Task.find(dueSoonCondition)
+        .select('title status dueDate priority')
+        .sort({ dueDate: 1 })
+        .lean(),
+
+      Task.find(overdueCondition)
+        .select('title status dueDate priority')
+        .sort({ dueDate: 1 })
+        .lean()
+    ]);
+
+    // Chuyển kết quả thống kê thành đối tượng dễ sử dụng
+    const byStatus = {
+      'Chưa thực hiện': 0,
+      'Đang thực hiện': 0,
+      'Đã hoàn thành': 0
+    };
+
+    statusStats.forEach(item => {
+      byStatus[item._id] = item.count;
+    });
+
+    return res.json({
+      success: true,
+      stats: {
+        totalTasks,
+        createdTasks,
+        assignedTasks,
+        sharedTasks,
+        dueSoonTasks,
+        overdueTasks,
+        dueSoonList,
+        overdueList,
+        byStatus
+      }
+    });
+
+  } catch (error) {
+    console.error('Lỗi thống kê công việc:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 // ==========================================
 
 router.get('/:id', validTaskId, async (req, res) => {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'screens/tasks/task_list_screen.dart';
 import 'screens/notifications/notification_screen.dart';
 import 'screens/notifications/email_history_screen.dart';
+import 'screens/statistics/statistics_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -534,6 +535,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 28),
 
+
           // QUẢN LÝ CÔNG VIỆC
           const Text(
             'QUẢN LÝ CÔNG VIỆC',
@@ -553,12 +555,29 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const TaskListScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const TaskListScreen(),
+                ),
+              );
+            },
+          ),
+
+          _buildMenu(
+            icon: Icons.bar_chart_rounded,
+            title: 'Thống kê công việc',
+            subtitle: 'Xem số lượng công việc theo trạng thái',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const StatisticsScreen(),
+                ),
               );
             },
           ),
 
           const SizedBox(height: 16),
+
 
           // THÔNG BÁO VÀ EMAIL
           const Text(
